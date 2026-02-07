@@ -6,6 +6,7 @@
 #include "../display/DisplayManager.h"
 #include "../display/QRRenderer.h"
 
+
 enum class AppState {
     INIT,
     CONNECTING_WIFI,
