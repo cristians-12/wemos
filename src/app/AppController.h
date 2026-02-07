@@ -1,16 +1,17 @@
+// AppController.h
 #ifndef APP_CONTROLLER_H
 #define APP_CONTROLLER_H
 
+#include <Arduino.h>
 #include "../network/WiFiManager.h"
-#include "../network/HTTPClient.h"
+#include "../network/ImageDownloader.h"
 #include "../display/DisplayManager.h"
-#include "../display/QRRenderer.h"
-
+#include "../display/ImageRenderer.h" 
 
 enum class AppState {
     INIT,
     CONNECTING_WIFI,
-    FETCHING_DATA,
+    DOWNLOADING_QR,
     DISPLAYING_QR,
     ERROR,
     IDLE
@@ -25,22 +26,25 @@ public:
     
 private:
     WiFiManager _wifiManager;
-    SecureHTTPClient _httpClient;
+    ImageDownloader _imageDownloader;
     DisplayManager _displayManager;
-    QRRenderer _qrRenderer;
+    ImageRenderer _imageRenderer;
     
     AppState _currentState;
     unsigned long _lastUpdateTime;
-    String _lastQRData;
+    
+    uint8_t* _imageBuffer;
+    size_t _imageLength;
     
     void handleStateInit();
     void handleStateConnectingWiFi();
-    void handleStateFetchingData();
+    void handleStateDownloadingQR();
     void handleStateDisplayingQR();
     void handleStateError();
     void handleStateIdle();
     
     void transitionTo(AppState newState);
+    void cleanupImageBuffer();
 };
 
 #endif

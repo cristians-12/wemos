@@ -1,12 +1,15 @@
+// AppController.cpp
 #include "AppController.h"
 #include "../config/Config.h"
 
 AppController::AppController()
     : _wifiManager(Config::WIFI_SSID, Config::WIFI_PASSWORD, Config::WIFI_TIMEOUT_MS),
-      _httpClient(Config::HTTP_TIMEOUT_MS),
-      _qrRenderer(_displayManager, Config::QR_MIN_SCALE, Config::QR_MAX_SCALE),
+      _imageDownloader(Config::HTTP_TIMEOUT_MS),
+      _imageRenderer(_displayManager),
       _currentState(AppState::INIT),
-      _lastUpdateTime(0) {}
+      _lastUpdateTime(0),
+      _imageBuffer(nullptr),
+      _imageLength(0) {}
 
 void AppController::init() {
     Serial.begin(Config::SERIAL_BAUD);
@@ -25,8 +28,8 @@ void AppController::update() {
         case AppState::CONNECTING_WIFI:
             handleStateConnectingWiFi();
             break;
-        case AppState::FETCHING_DATA:
-            handleStateFetchingData();
+        case AppState::DOWNLOADING_QR:
+            handleStateDownloadingQR();
             break;
         case AppState::DISPLAYING_QR:
             handleStateDisplayingQR();
@@ -40,37 +43,37 @@ void AppController::update() {
     }
 }
 
-void AppController::handleStateInit() {
-    transitionTo(AppState::CONNECTING_WIFI);
-}
-
 void AppController::handleStateConnectingWiFi() {
     _displayManager.showMessage("Conectando WiFi...", DisplayState::CONNECTING);
     
     if (_wifiManager.connect()) {
         _displayManager.showMessage("WiFi OK!", DisplayState::IDLE);
-        _displayManager.showMessage(_wifiManager.getIPAddress(), DisplayState::IDLE);
-        delay(2000);
-        transitionTo(AppState::FETCHING_DATA);
+        delay(1000);
+        transitionTo(AppState::DOWNLOADING_QR);
     } else {
         transitionTo(AppState::ERROR);
     }
 }
 
-void AppController::handleStateFetchingData() {
-    _displayManager.showMessage("Obteniendo datos...", DisplayState::LOADING);
+void AppController::handleStateDownloadingQR() {
+    _displayManager.showMessage("Descargando QR...", DisplayState::LOADING);
     
-    String response;
-    if (_httpClient.get(Config::API_URL, response)) {
-        _lastQRData = response;
+    cleanupImageBuffer();
+    
+    if (_imageDownloader.download(Config::API_URL, &_imageBuffer, _imageLength)) {
+        Serial.printf("[App] Descargado: %d bytes\n", _imageLength);
         transitionTo(AppState::DISPLAYING_QR);
     } else {
+        Serial.println("[App] Error descargando");
         transitionTo(AppState::ERROR);
     }
 }
 
 void AppController::handleStateDisplayingQR() {
-    if (_qrRenderer.render(_lastQRData)) {
+    _displayManager.showMessage("Mostrando QR...", DisplayState::LOADING);
+    delay(500);
+    
+    if (_imageRenderer.renderPNG(_imageBuffer, _imageLength)) {
         _lastUpdateTime = millis();
         transitionTo(AppState::IDLE);
     } else {
@@ -80,17 +83,31 @@ void AppController::handleStateDisplayingQR() {
 
 void AppController::handleStateError() {
     _displayManager.showMessage("Error", DisplayState::ERROR);
+    cleanupImageBuffer();
     delay(3000);
     transitionTo(AppState::CONNECTING_WIFI);
 }
 
 void AppController::handleStateIdle() {
     if (millis() - _lastUpdateTime >= Config::UPDATE_INTERVAL_MS) {
-        transitionTo(AppState::FETCHING_DATA);
+        cleanupImageBuffer();
+        transitionTo(AppState::DOWNLOADING_QR);
     }
+}
+
+void AppController::handleStateInit() {
+    transitionTo(AppState::CONNECTING_WIFI);
 }
 
 void AppController::transitionTo(AppState newState) {
     Serial.printf("[App] Estado: %d -> %d\n", (int)_currentState, (int)newState);
     _currentState = newState;
+}
+
+void AppController::cleanupImageBuffer() {
+    if (_imageBuffer) {
+        _imageDownloader.freeBuffer(_imageBuffer);
+        _imageBuffer = nullptr;
+        _imageLength = 0;
+    }
 }
