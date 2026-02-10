@@ -1,110 +1,125 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <IRremoteESP8266.h>
-#include <IRrecv.h>
-#include <IRsend.h>
+#include <Wire.h>
+#include <Adafruit_SSD1306.h>
+#include "config/Config.h"
 
-const uint16_t RECV_PIN = D5;   // Receptor IR en pin D5 (GPIO14)
-const uint16_t IR_LED_PIN = D2; // Emisor IR en pin D2 (GPIO4)
+Adafruit_SSD1306 display(Config::OLED_WIDTH,
+                         Config::OLED_HEIGHT,
+                         &Wire,
+                         -1);
 
-IRrecv irrecv(RECV_PIN);
-IRsend irsend(IR_LED_PIN);
-decode_results results;
+void showMessage(const char *message)
+{
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(10, 25);
+  display.print(message);
+  display.display();
 
-uint16_t currentFrequency = 38; // Frecuencia inicial en kHz
-
-void setup() {
-  Serial.begin(115200);
-  delay(10);
-
-  irrecv.enableIRIn();
-  irsend.begin();
-  Serial.println("IR Receiver y Emisor listos.");
-  Serial.println("Comandos disponibles:");
-  Serial.println("f36 - Cambiar frecuencia a 36 kHz");
-  Serial.println("f38 - Cambiar frecuencia a 38 kHz");
-  Serial.println("f40 - Cambiar frecuencia a 40 kHz");
-  Serial.print("Frecuencia actual: ");
-  Serial.print(currentFrequency);
-  Serial.println(" kHz");
+  Serial.println(message);
 }
 
-void loop() {
-  // Verificar si hay entrada del usuario en el Monitor Serie
-  if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');
-    command.trim(); // Eliminar espacios o saltos de línea
-    if (command == "f36") {
-      currentFrequency = 36;
-      Serial.print("Frecuencia cambiada a: ");
-      Serial.print(currentFrequency);
-      Serial.println(" kHz");
-    } else if (command == "f38") {
-      currentFrequency = 38;
-      Serial.print("Frecuencia cambiada a: ");
-      Serial.print(currentFrequency);
-      Serial.println(" kHz");
-    } else if (command == "f40") {
-      currentFrequency = 40;
-      Serial.print("Frecuencia cambiada a: ");
-      Serial.print(currentFrequency);
-      Serial.println(" kHz");
-    } else {
-      Serial.println("Comando no reconocido. Use f36, f38 o f40.");
+bool connect()
+{
+  showMessage("WiFi...");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASSWORD);
+
+  unsigned long startTime = millis();
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    if (millis() - startTime > Config::WIFI_TIMEOUT_MS)
+    {
+      Serial.println(F("\nTimeout WiFi"));
+      showMessage("WiFi\nError");
+      return false;
     }
-  }
-
-  // Verificar si se recibió una señal IR
-  if (irrecv.decode(&results)) {
-    // Mostrar el protocolo detectado
-    Serial.print("Protocolo: ");
-    switch (results.decode_type) {
-      case NEC: Serial.println("NEC"); break;
-      case SONY: Serial.println("SONY"); break;
-      case RC5: Serial.println("RC5"); break;
-      case RC6: Serial.println("RC6"); break;
-      case PANASONIC: Serial.println("PANASONIC"); break;
-      case LG: Serial.println("LG"); break;
-      case JVC: Serial.println("JVC"); break;
-      case MITSUBISHI: Serial.println("MITSUBISHI"); break;
-      case SAMSUNG: Serial.println("SAMSUNG"); break;
-      default: Serial.println("Desconocido o no soportado");
-    }
-
-    // Mostrar el valor recibido (si es menor a 64 bits)
-    Serial.print("Código recibido: 0x");
-    Serial.println((unsigned long)results.value, HEX);
-
-    // Mostrar el número de bits
-    Serial.print("Número de bits: ");
-    Serial.println(results.bits);
-
-    // Mostrar datos en bruto si es necesario
-    if (results.decode_type == UNKNOWN || results.bits > 32 || results.decode_type == PANASONIC) {
-      Serial.println("Datos en bruto (Raw Data):");
-      for (uint16_t i = 0; i < results.rawlen; i++) {
-        Serial.print(results.rawbuf[i] * 50); // Usamos 50 microsegundos por tick
-        if (i < results.rawlen - 1) Serial.print(", ");
-        if (i % 8 == 7) Serial.println(); // Nueva línea cada 8 valores
-      }
-      Serial.println();
-    }
-
-    // Reemitir la señal automáticamente usando datos en bruto
-    Serial.println("Reenviando señal IR...");
-    uint16_t rawData[results.rawlen];
-    for (uint16_t i = 0; i < results.rawlen; i++) {
-      rawData[i] = results.rawbuf[i];
-    }
-    irsend.sendRaw(rawData, results.rawlen, currentFrequency);
-    Serial.print("Señal reenviada usando datos en bruto a ");
-    Serial.print(currentFrequency);
-    Serial.println(" kHz.");
-    
-    // Esperar un poco para no saturar el receptor del aire acondicionado
     delay(500);
-
-    irrecv.resume();
+    Serial.print(".");
   }
+
+  Serial.println(F("\nWiFi conectado!"));
+  Serial.print(F("IP: "));
+  Serial.println(WiFi.localIP());
+
+  return true;
+}
+
+void setup()
+{
+  Serial.begin(Config::SERIAL_BAUD);
+  delay(1000);
+
+  Serial.println(F("\n=== Inicio ==="));
+  Serial.printf("RAM libre: %d bytes\n", ESP.getFreeHeap());
+
+  // Inicializar I2C y OLED
+  Wire.begin();
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
+  {
+    Serial.println(F("Error: OLED no encontrado"));
+    for (;;)
+      ;
+  }
+
+  Serial.println(F("OLED inicializado"));
+
+  display.clearDisplay();
+  display.display();
+
+  // Conectar WiFi
+  if (connect())
+  {
+    showMessage("Conectado");
+
+    // Mostrar IP en la pantalla
+    delay(2000);
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println(F("WiFi: OK"));
+    display.println();
+    display.print(F("IP:"));
+    display.println(WiFi.localIP());
+    display.display();
+
+    Serial.println(F("=== Setup completo ==="));
+  }
+  else
+  {
+    Serial.println(F("Error: No se pudo conectar"));
+    for (;;)
+    {
+      delay(1000);
+    }
+  }
+}
+
+void loop()
+{
+  // Verificar conexión cada 5 segundos
+  static unsigned long lastCheck = 0;
+
+  if (millis() - lastCheck > 5000)
+  {
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      Serial.println(F("WiFi: Conectado"));
+    }
+    else
+    {
+      Serial.println(F("WiFi: Desconectado, reconectando..."));
+      showMessage("Recon...");
+      connectWiFi();
+    }
+    lastCheck = millis();
+  }
+
   delay(100);
+  yield();
 }
