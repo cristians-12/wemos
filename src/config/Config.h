@@ -10,11 +10,13 @@ namespace Config {
     constexpr int HTTP_TIMEOUT_MS = 15000;
     constexpr int UPDATE_INTERVAL_MS = 30000;
     
+    constexpr const char* CEDULA = "1004863507";
+    
     constexpr int OLED_WIDTH = 128;
     constexpr int OLED_HEIGHT = 64;
     constexpr int OLED_ADDRESS = 0x3C;
+    constexpr int OLED_RESET = -1;
     
-
     constexpr int SERIAL_BAUD = 115200;
 }
 
