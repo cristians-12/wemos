@@ -45,8 +45,27 @@ void DisplayManager::showWiFiInfo(const char *ip)
     _display.display();
 }
 
+void DisplayManager::showQRCode(const uint8_t *bitmap, int width, int height)
+{
+    _display.clearDisplay();
+
+    // Centrar QR en pantalla
+    int x = (128 - width) / 2;
+    int y = (64 - height) / 2;
+
+    _display.drawBitmap(x, y, bitmap, width, height, SSD1306_WHITE);
+    _display.display();
+
+    Serial.println(F("QR Code mostrado en display"));
+}
+
 void DisplayManager::clear()
 {
     _display.clearDisplay();
     _display.display();
+}
+
+Adafruit_SSD1306 &DisplayManager::getDisplay()
+{
+    return _display;
 }

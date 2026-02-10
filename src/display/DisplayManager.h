@@ -14,7 +14,10 @@ public:
     bool begin();
     void showMessage(const char* message);
     void showWiFiInfo(const char* ip);
+    void showQRCode(const uint8_t* bitmap, int width, int height);  
     void clear();
+    
+    Adafruit_SSD1306& getDisplay();
 };
 
 #endif

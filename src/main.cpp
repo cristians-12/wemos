@@ -1,125 +1,127 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <Wire.h>
-#include <Adafruit_SSD1306.h>
 #include "config/Config.h"
+#include "display/DisplayManager.h"
+#include "network/NetworkManager.h"
+#include "network/QRCodeManager.h"
 
-Adafruit_SSD1306 display(Config::OLED_WIDTH,
-                         Config::OLED_HEIGHT,
-                         &Wire,
-                         -1);
+DisplayManager display(Config::OLED_WIDTH, Config::OLED_HEIGHT, Config::OLED_ADDRESS);
+NetworkManager network(Config::WIFI_SSID, Config::WIFI_PASSWORD,
+                       Config::API_URL, Config::WIFI_TIMEOUT_MS,
+                       Config::HTTP_TIMEOUT_MS);
+QRCodeManager qrManager;
 
-void showMessage(const char *message)
-{
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(10, 25);
-  display.print(message);
-  display.display();
-
-  Serial.println(message);
-}
-
-bool connect()
-{
-  showMessage("WiFi...");
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(Config::WIFI_SSID, Config::WIFI_PASSWORD);
-
-  unsigned long startTime = millis();
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    if (millis() - startTime > Config::WIFI_TIMEOUT_MS)
-    {
-      Serial.println(F("\nTimeout WiFi"));
-      showMessage("WiFi\nError");
-      return false;
-    }
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println(F("\nWiFi conectado!"));
-  Serial.print(F("IP: "));
-  Serial.println(WiFi.localIP());
-
-  return true;
-}
+bool firstApiCallDone = false;
 
 void setup()
 {
-  Serial.begin(Config::SERIAL_BAUD);
-  delay(1000);
 
-  Serial.println(F("\n=== Inicio ==="));
-  Serial.printf("RAM libre: %d bytes\n", ESP.getFreeHeap());
-
-  // Inicializar I2C y OLED
-  Wire.begin();
-
-  if (!display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
-  {
-    Serial.println(F("Error: OLED no encontrado"));
-    for (;;)
-      ;
-  }
-
-  Serial.println(F("OLED inicializado"));
-
-  display.clearDisplay();
-  display.display();
-
-  // Conectar WiFi
-  if (connect())
-  {
-    showMessage("Conectado");
-
-    // Mostrar IP en la pantalla
+    Serial.begin(Config::SERIAL_BAUD);
     delay(2000);
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println(F("WiFi: OK"));
-    display.println();
-    display.print(F("IP:"));
-    display.println(WiFi.localIP());
-    display.display();
 
-    Serial.println(F("=== Setup completo ==="));
-  }
-  else
-  {
-    Serial.println(F("Error: No se pudo conectar"));
-    for (;;)
+    if (!display.begin())
     {
-      delay(1000);
+        Serial.println(F("Error al inicializar display"));
+        for (;;)
+            ;
     }
-  }
+
+    network.setDisplay(&display);
+    qrManager.setDisplay(&display);
+
+    if (network.connectWiFi())
+    {
+        display.showMessage("Conectado");
+        delay(2000);
+        display.showWiFiInfo(network.getIP().c_str());
+        Serial.println(F("Setup completo ✓\n"));
+    }
+    else
+    {
+        for (;;)
+        {
+            delay(1000);
+        }
+    }
 }
 
 void loop()
 {
-  // Verificar conexión cada 5 segundos
-  static unsigned long lastCheck = 0;
+    static unsigned long lastWiFiCheck = 0;
+    static unsigned long lastApiCall = 0;
 
-  if (millis() - lastCheck > 5000)
-  {
-    if (WiFi.status() == WL_CONNECTED)
+    // Primera petición después de 3 segundos
+    if (!firstApiCallDone && millis() > 3000)
     {
-      Serial.println(F("WiFi: Conectado"));
-    }
-    else
-    {
-      Serial.println(F("WiFi: Desconectado, reconectando..."));
-      showMessage("Recon...");
-      connectWiFi();
-    }
-    lastCheck = millis();
-  }
+        Serial.println(F("\n>>> Obteniendo QR <<<"));
 
-  delay(100);
-  yield();
+        String htmlResponse;
+        if (network.httpGet(htmlResponse))
+        {
+            Serial.println(F("✓ HTML recibido"));
+            Serial.println(F("========== RESPUESTA COMPLETA =========="));
+            Serial.println(htmlResponse); // ← Ver respuesta completa
+            Serial.println(F("========================================"));
+
+            // Extraer URL del QR
+            String qrUrl = qrManager.extractQRUrl(htmlResponse);
+
+            if (qrUrl.length() > 0)
+            {
+                Serial.printf("URL extraída: %s\n", qrUrl.c_str());
+
+                // Descargar y mostrar QR
+                if (qrManager.downloadAndDisplayQR(qrUrl))
+                {
+                    Serial.println(F("✓ QR mostrado en pantalla"));
+                }
+                else
+                {
+                    Serial.println(F("✗ Error al procesar QR"));
+                    display.showMessage("QR Err");
+                }
+            }
+            else
+            {
+                Serial.println(F("✗ No se pudo extraer URL"));
+                display.showMessage("URL Err");
+            }
+        }
+        else
+        {
+            // ← AGREGAR ESTO
+            Serial.println(F("✗ Error en petición HTTP"));
+            Serial.printf("Código HTTP: %d\n", network.getLastHttpCode());
+            Serial.printf("Error: %s\n", network.getLastError().c_str());
+        }
+
+        firstApiCallDone = true;
+        lastApiCall = millis();
+    }
+
+    // Verificar WiFi cada 5 segundos
+    if (millis() - lastWiFiCheck > 5000)
+    {
+        network.checkConnection();
+        lastWiFiCheck = millis();
+    }
+
+    if (firstApiCallDone && (millis() - lastApiCall > 120000))
+    {
+        Serial.println(F("\n>>> Actualizando QR <<<"));
+
+        String htmlResponse;
+        if (network.httpGet(htmlResponse))
+        {
+            String qrUrl = qrManager.extractQRUrl(htmlResponse);
+            if (qrUrl.length() > 0)
+            {
+                qrManager.downloadAndDisplayQR(qrUrl);
+            }
+        }
+
+        lastApiCall = millis();
+    }
+
+    delay(100);
+    yield();
 }
