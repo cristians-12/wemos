@@ -3,12 +3,14 @@
 
 AppController app;
 
-void setup() {
+void setup()
+{
     app.init();
 }
 
-void loop() {
-    app.update();
-    delay(100);
-    yield();
+void loop()
+{
+    // app.update();
+    // delay(100);
+    // yield();
 }

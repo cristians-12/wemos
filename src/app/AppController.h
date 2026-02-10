@@ -1,10 +1,10 @@
-// AppController.h
 #ifndef APP_CONTROLLER_H
 #define APP_CONTROLLER_H
 
 #include <Arduino.h>
+#include "../config/Config.h"
 #include "../network/WiFiManager.h"
-#include "../network/ImageDownloader.h"
+#include "../display/ImageDownloader.h" 
 #include "../display/DisplayManager.h"
 #include "../display/ImageRenderer.h" 
 

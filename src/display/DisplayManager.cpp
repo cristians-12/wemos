@@ -1,44 +1,59 @@
 #include "DisplayManager.h"
+#include "../config/Config.h"
 
-DisplayManager::DisplayManager() {}
+DisplayManager::DisplayManager(int width, int height, int address, int resetPin)
+    : _display(width, height, &Wire, resetPin) {}
 
-void DisplayManager::init(int rotation) {
-    _tft.init();
-    _tft.setRotation(rotation);
-    clear();
-    Serial.println("[Display] Inicializado");
-}
+void DisplayManager::init()
+{
+    Wire.begin();
 
-void DisplayManager::showMessage(const String& message, DisplayState state) {
-    clear(getColorForState(state));
-    
-    _tft.setTextColor(TFT_WHITE);
-    _tft.setTextSize(2);
-    
-    centerText(message, _tft.height() / 2 - 10);
-    
-    Serial.println("[Display] Mensaje: " + message);
-}
-
-void DisplayManager::clear(uint16_t color) {
-    _tft.fillScreen(color);
-}
-
-uint16_t DisplayManager::getColorForState(DisplayState state) const {
-    switch (state) {
-        case DisplayState::ERROR: return TFT_RED;
-        case DisplayState::CONNECTING: return TFT_BLUE;
-        case DisplayState::LOADING: return TFT_ORANGE;
-        case DisplayState::DISPLAYING: return TFT_WHITE;
-        default: return TFT_BLACK;
+    if (!_display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
+    {
+        Serial.println(F("[Display] Error init"));
+        for (;;);
     }
+
+    Serial.println(F("[Display] OK")); 
+
+    _display.clearDisplay();
+    _display.setTextColor(SSD1306_WHITE);
+    _display.setTextSize(1);
+    _display.display();
 }
 
-void DisplayManager::centerText(const String& text, int y) {
+void DisplayManager::showMessage(const char* message, DisplayState state)
+{
+    clear();
+    _display.setTextSize(1);
+    _display.setTextColor(SSD1306_WHITE);
+    centerText(message, _display.height() / 2 - 4);
+    display();
+    
+    Serial.print(F("[Display] "));
+    Serial.println(message);
+}
+
+void DisplayManager::clear()
+{
+    _display.clearDisplay();
+}
+
+void DisplayManager::display()
+{
+    _display.display();
+}
+
+void DisplayManager::centerText(const char* text, int y)
+{
     int16_t x1, y1;
     uint16_t w, h;
-    _tft.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-    int x = (_tft.width() - w) / 2;
-    _tft.setCursor(x, y);
-    _tft.print(text);
+
+    _display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+    int x = (_display.width() - w) / 2;
+
+    if (x < 0) x = 0;
+
+    _display.setCursor(x, y);
+    _display.print(text);
 }

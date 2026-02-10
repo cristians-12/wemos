@@ -1,7 +1,9 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include <TFT_eSPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 enum class DisplayState {
     IDLE,
@@ -13,21 +15,21 @@ enum class DisplayState {
 
 class DisplayManager {
 public:
-    DisplayManager();
+    DisplayManager(int width, int height, int address, int resetPin);
     
-    void init(int rotation);
-    void showMessage(const String& message, DisplayState state);
-    void clear(uint16_t color = TFT_BLACK);
+    void init();
+    void showMessage(const char* message, DisplayState state);  // ← const char* en lugar de String
+    void clear();
+    void display();
     
-    TFT_eSPI& getTFT() { return _tft; }
-    int getWidth() const { return _tft.width(); }
-    int getHeight() const { return _tft.height(); }
+    Adafruit_SSD1306& getDisplay() { return _display; }
+    int getWidth() { return _display.width(); }
+    int getHeight() { return _display.height(); }
     
 private:
-    TFT_eSPI _tft;
+    Adafruit_SSD1306 _display;
     
-    uint16_t getColorForState(DisplayState state) const;
-    void centerText(const String& text, int y);
+    void centerText(const char* text, int y);  // ← const char*
 };
 
 #endif
