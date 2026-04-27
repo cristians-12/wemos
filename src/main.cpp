@@ -4,9 +4,6 @@
 #include <IRrecv.h>
 #include <IRsend.h>
 
-const uint16_t RECV_PIN = D5;   // Receptor IR en pin D5 (GPIO14)
-const uint16_t IR_LED_PIN = D2; // Emisor IR en pin D2 (GPIO4)
-
 IRrecv irrecv(RECV_PIN);
 IRsend irsend(IR_LED_PIN);
 decode_results results;
