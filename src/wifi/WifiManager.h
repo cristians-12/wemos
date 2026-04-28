@@ -10,4 +10,6 @@ public:
 
 private:
     void connect();
+    void blinkFast();
+    void blinkSlow(); 
 };

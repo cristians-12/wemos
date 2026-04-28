@@ -10,8 +10,8 @@
 #define LED_ON_TIME     2000  // ms que permanece encendido
 
 // ─── WiFi ─────────────────────────────────────────────
-#define WIFI_SSID       "TuSSID"
-#define WIFI_PASS       "TuPassword"
+#define WIFI_SSID       "FAMILIA SANCHEZ"
+#define WIFI_PASS       "12051004863507"
 
 // ─── API ──────────────────────────────────────────────
 #define API_BASE_URL    "http://api.ejemplo.com"
