@@ -26,6 +26,8 @@ void loop()
     if (rfidReader.cardPresent())
     {
         String uid = rfidReader.getUID();
+        Serial.print("Tarjeta detectada - UID: ");
+        Serial.println(uid);
     }
 
     delay(50);
