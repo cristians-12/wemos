@@ -18,6 +18,7 @@ void setup()
 
     wifiManager.begin();
     rfidReader.begin();
+    accessController.begin();
 }
 
 void loop()

@@ -1,8 +1,8 @@
 #include "HttpClient.h"
-#include "config.h"
 
 bool HttpClient::beginRequest(const String &url)
 {
+    _wifiClient.setInsecure();
     _http.setTimeout(API_TIMEOUT);
     return _http.begin(_wifiClient, url);
 }
@@ -23,6 +23,7 @@ void HttpClient::endRequest()
 bool HttpClient::get(const String &endpoint, String &response)
 {
     String url = String(API_BASE_URL) + endpoint;
+    Serial.println("URL: " + url);
 
     if (!beginRequest(url))
     {
@@ -33,16 +34,19 @@ bool HttpClient::get(const String &endpoint, String &response)
     setHeaders();
     int httpCode = _http.GET();
 
+    response = _http.getString();
+
+    Serial.printf("HTTP Code: %d\n", httpCode);
+    Serial.println("Response: " + response);
+
     if (httpCode == HTTP_CODE_OK)
     {
-        response = _http.getString();
         Serial.println(" GET exitoso");
-        Serial.println(" Response: " + response);
         endRequest();
         return true;
     }
 
-    Serial.printf("GET falló, código: %d\n", httpCode);
+    Serial.println(" GET falló");
     endRequest();
     return false;
 }

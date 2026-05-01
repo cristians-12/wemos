@@ -1,18 +1,20 @@
 #pragma once
 #include <ESP8266HTTPClient.h>
-#include <WiFiClient.h>
+// #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include "config.h"
 
-class HttpClient {
+class HttpClient
+{
 public:
-    bool get(const String& endpoint, String& response);
-    bool post(const String& endpoint, const String& payload, String& response);
+    bool get(const String &endpoint, String &response);
+    bool post(const String &endpoint, const String &payload, String &response);
 
 private:
-    WiFiClient _wifiClient;
+    WiFiClientSecure _wifiClient;
     HTTPClient _http;
 
-    bool        beginRequest(const String& url);
-    void        endRequest();
-    void        setHeaders();
+    bool beginRequest(const String &url);
+    void endRequest();
+    void setHeaders();
 };

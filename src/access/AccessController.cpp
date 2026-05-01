@@ -1,16 +1,18 @@
 #include "AccessController.h"
 
-AccessController::AccessController(HttpClient& httpClient)
+AccessController::AccessController(HttpClient &httpClient)
     : _httpClient(httpClient) {}
 
-void AccessController::begin() {
+void AccessController::begin()
+{
     pinMode(LED_GREEN_PIN, OUTPUT);
-    pinMode(LED_RED_PIN,   OUTPUT);
+    pinMode(LED_RED_PIN, OUTPUT);
     digitalWrite(LED_GREEN_PIN, LOW);
-    digitalWrite(LED_RED_PIN,   LOW);
+    digitalWrite(LED_RED_PIN, LOW);
 }
 
-void AccessController::processCard(const String& uid) {
+void AccessController::processCard(const String &uid)
+{
     Serial.println("🪪 UID detectado: " + uid);
 
     // ✅ JsonDocument en lugar de StaticJsonDocument
@@ -18,44 +20,53 @@ void AccessController::processCard(const String& uid) {
     doc["uid"] = uid;
     String payload;
     serializeJson(doc, payload);
-
+    String endpoint = String(API_ACCESS) + "/" + uid;
     String response;
-    bool success = _httpClient.post(API_ACCESS, payload, response);
+    // bool success = _httpClient.post(API_ACCESS, payload, response);
+    bool success = _httpClient.get(endpoint, response);
 
-    if (!success) {
+    if (!success)
+    {
         Serial.println("❌ Error comunicando con el servidor");
         denyAccess();
         return;
     }
 
-    if (parseResponse(response)) {
+    if (parseResponse(response))
+    {
         grantAccess();
-    } else {
+    }
+    else
+    {
         denyAccess();
     }
 }
 
-bool AccessController::parseResponse(const String& response) {
+bool AccessController::parseResponse(const String &response)
+{
     // ✅ JsonDocument en lugar de StaticJsonDocument
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, response);
 
-    if (error) {
+    if (error)
+    {
         Serial.println("❌ Error parseando JSON");
         return false;
     }
 
-    return doc["access"].as<bool>();
+    return doc["success"].as<bool>();
 }
 
-void AccessController::grantAccess() {
+void AccessController::grantAccess()
+{
     Serial.println("✅ Acceso PERMITIDO");
     digitalWrite(LED_GREEN_PIN, HIGH);
     delay(LED_ON_TIME);
     digitalWrite(LED_GREEN_PIN, LOW);
 }
 
-void AccessController::denyAccess() {
+void AccessController::denyAccess()
+{
     Serial.println("🚫 Acceso DENEGADO");
     digitalWrite(LED_RED_PIN, HIGH);
     delay(LED_ON_TIME);
