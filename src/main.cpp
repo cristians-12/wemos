@@ -28,6 +28,8 @@ void loop()
         String uid = rfidReader.getUID();
         Serial.print("Tarjeta detectada - UID: ");
         Serial.println(uid);
+
+        accessController.processCard(uid);
     }
 
     delay(50);

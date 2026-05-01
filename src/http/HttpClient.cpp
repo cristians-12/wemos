@@ -1,24 +1,31 @@
 #include "HttpClient.h"
+#include "config.h"
 
-bool HttpClient::beginRequest(const String& url) {
+bool HttpClient::beginRequest(const String &url)
+{
     _http.setTimeout(API_TIMEOUT);
     return _http.begin(_wifiClient, url);
 }
 
-void HttpClient::setHeaders() {
+void HttpClient::setHeaders()
+{
     _http.addHeader("Content-Type", "application/json");
-    _http.addHeader("Accept",       "application/json");
+    _http.addHeader("Accept", "application/json");
+    _http.addHeader("Authorization", "Bearer " + String(API_KEY));
 }
 
-void HttpClient::endRequest() {
+void HttpClient::endRequest()
+{
     _http.end();
 }
 
 // ─── GET ──────────────────────────────────────────────
-bool HttpClient::get(const String& endpoint, String& response) {
+bool HttpClient::get(const String &endpoint, String &response)
+{
     String url = String(API_BASE_URL) + endpoint;
 
-    if (!beginRequest(url)) {
+    if (!beginRequest(url))
+    {
         Serial.println(" Error al iniciar GET");
         return false;
     }
@@ -26,7 +33,8 @@ bool HttpClient::get(const String& endpoint, String& response) {
     setHeaders();
     int httpCode = _http.GET();
 
-    if (httpCode == HTTP_CODE_OK) {
+    if (httpCode == HTTP_CODE_OK)
+    {
         response = _http.getString();
         Serial.println(" GET exitoso");
         Serial.println(" Response: " + response);
@@ -40,10 +48,12 @@ bool HttpClient::get(const String& endpoint, String& response) {
 }
 
 // ─── POST ─────────────────────────────────────────────
-bool HttpClient::post(const String& endpoint, const String& payload, String& response) {
+bool HttpClient::post(const String &endpoint, const String &payload, String &response)
+{
     String url = String(API_BASE_URL) + endpoint;
 
-    if (!beginRequest(url)) {
+    if (!beginRequest(url))
+    {
         Serial.println(" Error al iniciar POST");
         return false;
     }
@@ -51,7 +61,8 @@ bool HttpClient::post(const String& endpoint, const String& payload, String& res
     setHeaders();
     int httpCode = _http.POST(payload);
 
-    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED)
+    {
         response = _http.getString();
         Serial.println("POST exitoso");
         Serial.println("📥 Response: " + response);

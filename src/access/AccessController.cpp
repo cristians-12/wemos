@@ -8,7 +8,6 @@ void AccessController::begin() {
     pinMode(LED_RED_PIN,   OUTPUT);
     digitalWrite(LED_GREEN_PIN, LOW);
     digitalWrite(LED_RED_PIN,   LOW);
-    Serial.println("✅ AccessController listo");
 }
 
 void AccessController::processCard(const String& uid) {
